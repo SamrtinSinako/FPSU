@@ -65,6 +65,7 @@ fun GeneralSettingsContent(
     onMagicMountChange: (Boolean) -> Unit,
     snackBarHost: SnackbarHostState,
     flat: Boolean = false,
+    highlightKey: String? = null,
     navigator: DestinationsNavigator,
 ) {
     val context = LocalContext.current
@@ -180,9 +181,9 @@ fun GeneralSettingsContent(
         else -> stringResource(R.string.settings_new_app_profile_normal)
     }
 
-    SplicedColumnGroup(flat = flat) {
+    SplicedColumnGroup(flat = flat, highlightKey = highlightKey) {
 
-        item {
+        item(key = "general_language") {
             ExpressiveCard(flat = flat, onClick = { navigator.navigate(LanguagePickerScreenDestination) }) {
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(16.dp),
@@ -208,7 +209,7 @@ fun GeneralSettingsContent(
             }
         }
 
-        item {
+        item(key = "general_check_update") {
             ExpressiveCard(flat = flat, onClick = {
                 scope.launch {
                     loadingDialog.show()
@@ -237,7 +238,7 @@ fun GeneralSettingsContent(
             }
         }
 
-        item {
+        item(key = "general_auto_update") {
             ToggleSettingCard(
             flat = flat,
             icon = Icons.Filled.Autorenew,
@@ -251,7 +252,7 @@ fun GeneralSettingsContent(
         )
         }
 
-        item {
+        item(key = "general_block_kp_update") {
             ToggleSettingCard(
             flat = flat,
             icon = Icons.Filled.Block,
@@ -265,7 +266,7 @@ fun GeneralSettingsContent(
         )
         }
 
-        item {
+        item(key = "general_block_ap_update") {
             ToggleSettingCard(
             flat = flat,
             icon = Icons.Filled.Block,
@@ -279,7 +280,7 @@ fun GeneralSettingsContent(
         )
         }
 
-        item {
+        item(key = "general_folkx_engine") {
             ToggleSettingCard(
             flat = flat,
             icon = Icons.Filled.AutoAwesome,
@@ -293,7 +294,7 @@ fun GeneralSettingsContent(
         )
         }
 
-        item(visible = folkXEngineEnabled) {
+        item(key = "general_folkx_animation_type", visible = folkXEngineEnabled) {
             val animationTypeLabel = when (currentType) {
                 "linear" -> R.string.settings_folkx_animation_linear
                 "spatial" -> R.string.settings_folkx_animation_spatial
@@ -328,7 +329,7 @@ fun GeneralSettingsContent(
             }
         }
 
-        item(visible = folkXEngineEnabled) {
+        item(key = "general_folkx_animation_speed", visible = folkXEngineEnabled) {
             ExpressiveCard(flat = flat, onClick = { showFolkXAnimationSpeedDialog.value = true }) {
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(16.dp),
@@ -354,7 +355,7 @@ fun GeneralSettingsContent(
             }
         }
 
-        item(visible = Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+        item(key = "general_predictive_back", visible = Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             ToggleSettingCard(
             flat = flat,
             icon = Icons.Filled.ArrowBack,
@@ -369,7 +370,7 @@ fun GeneralSettingsContent(
             )
         }
 
-        item(visible = kPatchReady) {
+        item(key = "general_new_app_profile", visible = kPatchReady) {
             ExpressiveCard(flat = flat, onClick = { showNewAppProfileModeDialog.value = true }) {
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(16.dp),
@@ -395,7 +396,7 @@ fun GeneralSettingsContent(
             }
         }
 
-        item(visible = kPatchReady) {
+        item(key = "general_app_list_scheme", visible = kPatchReady) {
             ExpressiveCard(flat = flat, onClick = { showAppListLoadingSchemeDialog.value = true }) {
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(16.dp),
@@ -421,7 +422,7 @@ fun GeneralSettingsContent(
             }
         }
 
-        item(visible = kPatchReady && aPatchReady) {
+        item(key = "general_selinux_mode", visible = kPatchReady && aPatchReady) {
             ExpressiveCard(flat = flat, onClick = { showSELinuxModeDialog.value = true }) {
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(16.dp),
@@ -447,7 +448,7 @@ fun GeneralSettingsContent(
             }
         }
 
-        item(visible = kPatchReady && aPatchReady) {
+        item(key = "general_global_namespace", visible = kPatchReady && aPatchReady) {
             ToggleSettingCard(
             flat = flat,
             icon = Icons.Filled.Public,
@@ -461,7 +462,7 @@ fun GeneralSettingsContent(
             )
         }
 
-        item(visible = kPatchReady && aPatchReady) {
+        item(key = "general_magic_mount", visible = kPatchReady && aPatchReady) {
             ToggleSettingCard(
             flat = flat,
             icon = Icons.Filled.FolderSpecial,
@@ -475,7 +476,7 @@ fun GeneralSettingsContent(
             )
         }
 
-        item {
+        item(key = "general_alt_icon") {
             ToggleSettingCard(
             flat = flat,
             icon = Icons.Filled.Android,
@@ -490,7 +491,7 @@ fun GeneralSettingsContent(
         )
         }
 
-        item(visible = kPatchReady) {
+        item(key = "general_reset_su_path", visible = kPatchReady) {
             ExpressiveCard(flat = flat, onClick = { showResetSuPathDialog.value = true }) {
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(16.dp),
@@ -508,7 +509,7 @@ fun GeneralSettingsContent(
             }
         }
 
-        item {
+        item(key = "general_app_title") {
             ExpressiveCard(flat = flat, onClick = { showAppTitleDialog.value = true }) {
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(16.dp),
@@ -534,7 +535,7 @@ fun GeneralSettingsContent(
             }
         }
 
-        item(visible = currentAppTitle == "custom") {
+        item(key = "general_custom_app_title", visible = currentAppTitle == "custom") {
             ExpressiveCard(flat = flat, onClick = { showCustomAppTitleDialog.value = true }) {
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(16.dp),
@@ -560,7 +561,7 @@ fun GeneralSettingsContent(
             }
         }
 
-        item {
+        item(key = "general_desktop_app_name") {
             ExpressiveCard(flat = flat, onClick = { showDesktopAppNameDialog.value = true }) {
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(16.dp),
@@ -586,7 +587,7 @@ fun GeneralSettingsContent(
             }
         }
 
-        item {
+        item(key = "general_dpi") {
             ExpressiveCard(flat = flat, onClick = { showDpiDialog.value = true }) {
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(16.dp),
@@ -612,7 +613,7 @@ fun GeneralSettingsContent(
             }
         }
 
-        item {
+        item(key = "general_send_log") {
             ExpressiveCard(flat = flat, onClick = {
                 scope.launch {
                     val bugreport = loadingDialog.withLoading {
