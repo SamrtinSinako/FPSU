@@ -36,8 +36,8 @@ object PkgConfig {
                 val exclude = obj.optInt("exclude", 0)
                 val allow = obj.optInt("allow", 0)
                 val uid = obj.optInt("uid", 0)
-                val toUid = obj.optInt("toUid", 0)
-                val scontext = obj.optString("scontext", APApplication.DEFAULT_SCONTEXT)
+                val toUid = obj.optInt("to_uid", 0)
+                val scontext = obj.optString("sctx", APApplication.DEFAULT_SCONTEXT)
                 val profile = Natives.Profile(uid, toUid, scontext)
                 return Config(pkg, exclude, allow, profile)
             }
@@ -48,8 +48,8 @@ object PkgConfig {
                     put("exclude", config.exclude)
                     put("allow", config.allow)
                     put("uid", config.profile.uid)
-                    put("toUid", config.profile.toUid)
-                    put("scontext", config.profile.scontext)
+                    put("to_uid", config.profile.toUid)
+                    put("sctx", config.profile.scontext)
                 }
             }
         }
