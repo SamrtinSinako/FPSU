@@ -296,8 +296,10 @@ fun downloadFile(url: String, destFile: File) {
 fun getGitHubToken(): String {
     val envToken = System.getenv("KP_GH_TOKEN") ?: System.getenv("GITHUB_TOKEN")
     if (!envToken.isNullOrBlank()) return envToken
-    val localPropsToken = project.property("kpGhToken") as? String
-    if (!localPropsToken.isNullOrBlank()) return localPropsToken
+    if (project.hasProperty("kpGhToken")) {
+        val localPropsToken = project.property("kpGhToken") as? String
+        if (!localPropsToken.isNullOrBlank()) return localPropsToken
+    }
     throw GradleException(
         "GitHub token required for artifact download. " +
         "Set KP_GH_TOKEN or GITHUB_TOKEN env var, or kpGhToken in local.properties."
