@@ -29,3 +29,6 @@ fpd/.cargo/
 # demo project
 demo
 KernelPatch
+
+# CodeGraph local index
+.codegraph/

@@ -2,8 +2,11 @@
 
 import com.android.build.gradle.tasks.PackageAndroidArtifact
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import java.net.HttpURLConnection
 import java.net.URI
+import java.net.URL
 import java.util.Properties
+import java.util.zip.ZipInputStream
 import java.io.File
 import java.io.FileInputStream
 
@@ -29,6 +32,8 @@ val managerVersionCode: Int by rootProject.extra
 val managerVersionName: String by rootProject.extra
 val branchName: String by rootProject.extra
 val kernelPatchVersion: String by rootProject.extra
+val kernelPatchBranch: String by rootProject.extra
+val kernelPatchRepo: String by rootProject.extra
 
 // Load keystore properties
 val keystoreProperties = Properties()
@@ -241,7 +246,9 @@ kotlin {
     }
 }
 
-fun registerDownloadTask(
+// ── Release download helpers ──
+
+fun registerReleaseDownloadTask(
     taskName: String, srcUrl: String, destPath: String, project: Project, version: String? = null
 ) {
     project.tasks.register(taskName) {
@@ -284,25 +291,150 @@ fun downloadFile(url: String, destFile: File) {
     }
 }
 
-registerDownloadTask(
+// ── GitHub Actions artifact download helpers ──
+
+fun getGitHubToken(): String {
+    val envToken = System.getenv("KP_GH_TOKEN") ?: System.getenv("GITHUB_TOKEN")
+    if (!envToken.isNullOrBlank()) return envToken
+    val localPropsToken = project.property("kpGhToken") as? String
+    if (!localPropsToken.isNullOrBlank()) return localPropsToken
+    throw GradleException(
+        "GitHub token required for artifact download. " +
+        "Set KP_GH_TOKEN or GITHUB_TOKEN env var, or kpGhToken in local.properties."
+    )
+}
+
+fun httpGet(url: String, token: String): String {
+    val conn = URL(url).openConnection() as HttpURLConnection
+    conn.requestMethod = "GET"
+    conn.setRequestProperty("Authorization", "Bearer $token")
+    conn.setRequestProperty("Accept", "application/vnd.github.v3+json")
+    conn.connectTimeout = 15000
+    conn.readTimeout = 15000
+    return conn.inputStream.reader().readText()
+}
+
+fun extractJsonValue(json: String, key: String, afterPos: Int = 0): String? {
+    val searchKey = "\"$key\":"
+    val start = json.indexOf(searchKey, afterPos)
+    if (start < 0) return null
+    val valueStart = start + searchKey.length
+    var end = valueStart
+    while (end < json.length && json[end] != ',' && json[end] != '}' && json[end] != ']') end++
+    return json.substring(valueStart, end).trim()
+}
+
+fun findArtifactId(json: String, artifactName: String): String? {
+    val artifactsKey = "\"artifacts\":"
+    val artsStart = json.indexOf(artifactsKey)
+    if (artsStart < 0) return null
+    var pos = artsStart
+    while (true) {
+        val nameKey = "\"name\":\"$artifactName\""
+        val namePos = json.indexOf(nameKey, pos)
+        if (namePos < 0) return null
+        val idKey = "\"id\":"
+        val idPos = json.lastIndexOf(idKey, namePos)
+        if (idPos < artsStart) { pos = namePos + 1; continue }
+        val idEnd = json.indexOf(",", idPos + idKey.length)
+        if (idEnd < 0) return null
+        return json.substring(idPos + idKey.length, idEnd).trim()
+    }
+}
+
+fun downloadArtifactZip(artifactId: String, token: String, destZip: File) {
+    val url = "https://api.github.com/repos/$kernelPatchRepo/actions/artifacts/$artifactId/zip"
+    println(" - Downloading artifact $artifactId from $kernelPatchRepo (next branch) ...")
+    val conn = URL(url).openConnection() as HttpURLConnection
+    conn.requestMethod = "GET"
+    conn.setRequestProperty("Authorization", "Bearer $token")
+    conn.setRequestProperty("Accept", "application/vnd.github.v3+json")
+    conn.instanceFollowRedirects = true
+    destZip.outputStream().use { out -> conn.inputStream.use { it.copyTo(out) } }
+}
+
+fun extractFromZip(zipFile: File, entryName: String, destFile: File) {
+    ZipInputStream(zipFile.inputStream()).use { zip ->
+        var entry = zip.nextEntry
+        while (entry != null) {
+            if (entry.name.removePrefix("./") == entryName || entry.name == entryName) {
+                destFile.outputStream().use { out -> zip.copyTo(out) }
+                println(" - Extracted ${entry.name} -> ${destFile.absolutePath}")
+                return
+            }
+            entry = zip.nextEntry
+        }
+    }
+    throw GradleException("Entry '$entryName' not found in artifact zip: $zipFile")
+}
+
+fun registerArtifactDownloadTask(
+    taskName: String, artifactName: String, extractPath: String,
+    destPath: String, project: Project
+) {
+    project.tasks.register(taskName) {
+        val destFile = File(destPath)
+        val versionFile = File("$destPath.version")
+        val tempZip = File("${destFile.parentFile?.absolutePath ?: "."}/.${taskName}_tmp.zip")
+
+        doLast {
+            val token = getGitHubToken()
+
+            // Find latest successful run on next branch
+            val runUrl = "https://api.github.com/repos/$kernelPatchRepo/actions/runs" +
+                "?branch=$kernelPatchBranch&status=success&event=push&per_page=1"
+            val runJson = httpGet(runUrl, token)
+            val runId = extractJsonValue(runJson, "id")
+                ?: throw GradleException("No successful run found on branch '$kernelPatchBranch'")
+
+            // Get artifact ID
+            val artUrl = "https://api.github.com/repos/$kernelPatchRepo/actions/runs/$runId/artifacts"
+            val artJson = httpGet(artUrl, token)
+            val artifactId = findArtifactId(artJson, artifactName)
+                ?: throw GradleException("Artifact '$artifactName' not found in run $runId")
+
+            // Check version
+            val versionTag = "$runId-$artifactId"
+            if (versionFile.exists() && versionFile.readText().trim() == versionTag && destFile.exists()) {
+                println(" - $taskName: up-to-date (run $runId).")
+                return@doLast
+            }
+
+            // Download and extract
+            downloadArtifactZip(artifactId, token, tempZip)
+            extractFromZip(tempZip, extractPath, destFile)
+            tempZip.delete()
+
+            versionFile.writeText(versionTag)
+            println(" - $taskName completed (run $runId).")
+        }
+
+        doLast {
+            tempZip.delete()
+        }
+    }
+}
+
+// ── Download tasks ──
+
+registerArtifactDownloadTask(
     taskName = "downloadKpimg",
-    srcUrl = "https://github.com/LyraVoid/KernelPatch/releases/download/$kernelPatchVersion/kpimg-android",
+    artifactName = "kpimg",
+    extractPath = "kpimg-android",
     destPath = "${project.projectDir}/src/main/assets/kpimg",
-    project = project,
-    version = kernelPatchVersion
+    project = project
 )
 
-registerDownloadTask(
+registerArtifactDownloadTask(
     taskName = "downloadKptools",
-    srcUrl = "https://github.com/LyraVoid/KernelPatch/releases/download/$kernelPatchVersion/kptools-android",
+    artifactName = "kptools-android",
+    extractPath = "kptools-android",
     destPath = "${project.projectDir}/libs/arm64-v8a/libkptools.so",
-    project = project,
-    version = kernelPatchVersion
+    project = project
 )
 
 // Compat kp version less than 0.10.7
-// TODO: Remove in future
-registerDownloadTask(
+registerReleaseDownloadTask(
     taskName = "downloadCompatKpatch",
     srcUrl = "https://github.com/bmax121/KernelPatch/releases/download/0.10.7/kpatch-android",
     destPath = "${project.projectDir}/libs/arm64-v8a/libkpatch.so",

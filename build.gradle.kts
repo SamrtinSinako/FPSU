@@ -5,6 +5,8 @@ plugins {
 }
 
 project.ext.set("kernelPatchVersion", "0.13.1")
+project.ext.set("kernelPatchBranch", "next")
+project.ext.set("kernelPatchRepo", "LyraVoid/KernelPatch")
 
 val androidMinSdkVersion by extra(26)
 val androidTargetSdkVersion by extra(36)
