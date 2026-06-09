@@ -149,25 +149,14 @@ pub fn read_ap_package_config() -> Vec<PackageConfig> {
             }
         };
 
-        let mut reader = csv::Reader::from_reader(file);
-        let mut package_configs = Vec::new();
-        let mut success = true;
-
-        for record in reader.deserialize() {
-            match record {
-                Ok(config) => package_configs.push(config),
-                Err(e) => {
-                    warn!("Error deserializing record: {}", e);
-                    success = false;
-                    break;
-                }
+        let reader = std::io::BufReader::new(file);
+        match serde_json::from_reader(reader) {
+            Ok(configs) => return configs,
+            Err(e) => {
+                warn!("Error deserializing JSON config: {}", e);
+                thread::sleep(Duration::from_secs(1));
             }
         }
-
-        if success {
-            return package_configs;
-        }
-        thread::sleep(Duration::from_secs(1));
     }
     Vec::new()
 }
@@ -185,34 +174,21 @@ pub fn write_ap_package_config(package_configs: &[PackageConfig]) -> io::Result<
             }
         };
 
-        let mut writer = csv::Writer::from_writer(file);
-        let mut success = true;
-
-        for config in package_configs {
-            if let Err(e) = writer.serialize(config) {
-                warn!("Error serializing record: {}", e);
-                success = false;
-                break;
+        let writer = std::io::BufWriter::new(file);
+        match serde_json::to_writer_pretty(writer, package_configs) {
+            Ok(()) => {
+                if let Err(e) = std::fs::rename(temp_path, "/data/adb/ap/package_config") {
+                    warn!("Error renaming temp file: {}", e);
+                    thread::sleep(Duration::from_secs(1));
+                    continue;
+                }
+                return Ok(());
+            }
+            Err(e) => {
+                warn!("Error serializing JSON config: {}", e);
+                thread::sleep(Duration::from_secs(1));
             }
         }
-
-        if !success {
-            thread::sleep(Duration::from_secs(1));
-            continue;
-        }
-
-        if let Err(e) = writer.flush() {
-            warn!("Error flushing writer: {}", e);
-            thread::sleep(Duration::from_secs(1));
-            continue;
-        }
-
-        if let Err(e) = std::fs::rename(temp_path, "/data/adb/ap/package_config") {
-            warn!("Error renaming temp file: {}", e);
-            thread::sleep(Duration::from_secs(1));
-            continue;
-        }
-        return Ok(());
     }
     Err(io::Error::new(
         io::ErrorKind::Other,
