@@ -307,7 +307,7 @@ fun getGitHubToken(): String {
 }
 
 fun httpGet(url: String, token: String): String {
-    val conn = URL(url).openConnection() as HttpURLConnection
+    val conn = URI(url).toURL().openConnection() as HttpURLConnection
     conn.requestMethod = "GET"
     conn.setRequestProperty("Authorization", "Bearer $token")
     conn.setRequestProperty("Accept", "application/vnd.github.v3+json")
@@ -347,7 +347,7 @@ fun findArtifactId(json: String, artifactName: String): String? {
 fun downloadArtifactZip(artifactId: String, token: String, destZip: File) {
     val url = "https://api.github.com/repos/$kernelPatchRepo/actions/artifacts/$artifactId/zip"
     println(" - Downloading artifact $artifactId from $kernelPatchRepo (next branch) ...")
-    val conn = URL(url).openConnection() as HttpURLConnection
+    val conn = URI(url).toURL().openConnection() as HttpURLConnection
     conn.requestMethod = "GET"
     conn.setRequestProperty("Authorization", "Bearer $token")
     conn.setRequestProperty("Accept", "application/vnd.github.v3+json")
