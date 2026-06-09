@@ -8,6 +8,13 @@ on:
     branches: [ next ]
     paths: [ 'app/**', 'apd/**', 'fpd/**', '.github/workflows/build-next.yml' ]
   workflow_dispatch:
+    inputs:
+      build_type:
+        description: 'Build type'
+        required: true
+        default: 'both'
+        type: choice
+        options: [ both, debug, release ]
 
 env:
   KEYSTORE_FILE: debug.keystore
@@ -16,7 +23,29 @@ env:
   KEY_PASSWORD: android
 
 jobs:
-  build:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      build_debug: ${{ steps.set.outputs.debug }}
+      build_release: ${{ steps.set.outputs.release }}
+
+    steps:
+      - id: set
+        run: |
+          TYPE="${{ inputs.build_type }}"
+          [ "${{ github.event_name }}" != "workflow_dispatch" ] && TYPE="both"
+
+          DEBUG="false"; RELEASE="false"
+          [ "$TYPE" = "both" -o "$TYPE" = "debug" ] && DEBUG="true"
+          [ "$TYPE" = "both" -o "$TYPE" = "release" ] && RELEASE="true"
+
+          echo "debug=$DEBUG" >> "$GITHUB_OUTPUT"
+          echo "release=$RELEASE" >> "$GITHUB_OUTPUT"
+
+  build_debug:
+    name: Build Debug
+    needs: prepare
+    if: needs.prepare.outputs.build_debug == 'true'
     runs-on: ubuntu-latest
 
     steps:
@@ -32,10 +61,50 @@ jobs:
         run: |
           SHORT="${GITHUB_SHA::7}"
           APK=$(find app/build/outputs/apk/debug -name "*.apk" -type f | head -1)
-          [ -n "$APK" ] && mv "$APK" "FolkPatch-Next-${SHORT}.apk"
+          [ -n "$APK" ] && mv "$APK" "FolkPatch-Next-Debug-${SHORT}.apk"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: folkpatch-next-${{ github.sha }}
-          path: FolkPatch-Next-*.apk
+          name: folkpatch-next-debug-${{ github.sha }}
+          path: FolkPatch-Next-Debug-*.apk
+          retention-days: 7
+
+  build_release:
+    name: Build Release
+    needs: prepare
+    if: needs.prepare.outputs.build_release == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - uses: ./.github/actions/setup-build-env
+
+      - name: Decode keystore
+        run: |
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > FolkPatch.jks
+
+      - name: Create keystore.properties
+        run: |
+          cat > keystore.properties << 'EOF'
+          KEYSTORE_FILE=../FolkPatch.jks
+          KEYSTORE_PASSWORD=${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS=${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD=${{ secrets.KEY_PASSWORD }}
+          EOF
+
+      - run: ./gradlew assembleRelease --no-daemon
+
+      - name: Rename APK
+        run: |
+          SHORT="${GITHUB_SHA::7}"
+          APK=$(find app/build/outputs/apk/release -name "*.apk" -type f | head -1)
+          [ -n "$APK" ] && mv "$APK" "FolkPatch-Next-Release-${SHORT}.apk"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: folkpatch-next-release-${{ github.sha }}
+          path: FolkPatch-Next-Release-*.apk
           retention-days: 7
