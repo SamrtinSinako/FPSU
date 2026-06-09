@@ -20,7 +20,7 @@ pub const DAEMON_PATH: &str = concatcp!(ADB_DIR, "apd");
 pub const AUTO_EXCLUDE_KNOWN_PACKAGES_FILE: &str =
     concatcp!(WORKING_DIR, "auto_exclude_known_packages");
 
-pub const PATHHIDE_DIR: &str = concatcp!(ADB_DIR, "fp/pathhide/");
+pub const PATHHIDE_DIR: &str = concatcp!(ADB_DIR, "fp/pathhide/"); // 上游预留，待实现功能
 pub const PATHHIDE_ENABLE_FILE: &str = concatcp!(ADB_DIR, "fp/pathhide/enabled");
 pub const PATHHIDE_PATHS_FILE: &str = concatcp!(ADB_DIR, "fp/pathhide/paths");
 pub const PATHHIDE_UIDS_FILE: &str = concatcp!(ADB_DIR, "fp/pathhide/uids");
@@ -28,7 +28,7 @@ pub const PATHHIDE_UID_MODE_FILE: &str = concatcp!(ADB_DIR, "fp/pathhide/uid_mod
 pub const PATHHIDE_FILTER_SYSTEM_FILE: &str = concatcp!(ADB_DIR, "fp/pathhide/filter_system");
 pub const PATHHIDE_RETRY_FILE: &str = concatcp!(ADB_DIR, "fp/pathhide/retry");
 
-pub const NETISOLATE_DIR: &str = concatcp!(ADB_DIR, "fp/netisolate/");
+pub const NETISOLATE_DIR: &str = concatcp!(ADB_DIR, "fp/netisolate/"); // 上游预留，待实现功能
 pub const NETISOLATE_ENABLE_FILE: &str = concatcp!(ADB_DIR, "fp/netisolate/enabled");
 pub const NETISOLATE_UIDS_FILE: &str = concatcp!(ADB_DIR, "fp/netisolate/uids");
 

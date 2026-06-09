@@ -61,7 +61,7 @@ pub fn ensure_binary<T: AsRef<Path>>(path: T) -> Result<()> {
     Ok(())
 }
 
-pub fn get_work_dir() -> &'static str {
+pub fn get_work_dir() -> &'static str { // 上游预留，待实现功能
     defs::WORKING_DIR
 }
 
